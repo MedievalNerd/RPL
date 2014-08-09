@@ -4,217 +4,242 @@ namespace CustomExperiment
 {
     public class ChemicalReleaseExperiment : ModuleScienceExperiment
     {
+        #region Variables & Fields
+
         [KSPField(isPersistant = false)]
-        public string ExperimentChemical;
+        public String ExperimentChemical;
+
         [KSPField(isPersistant = false)]
-        public string TargetBody;
+        public String TargetBody;
+
         [KSPField(isPersistant = false)]
-        public string TargetSituation;
+        public String TargetSituation;
+
+
+        #endregion
+
+
+        #region Methods
+
+        // Ethernet's Methods for ExperimentSituations (Below this point)
+        // Removed atmosphere check, to allow for flyingHigh/Low situations on non atmospheric bodies. Well that's the idea. Let's try it out. 
+        // Success!
+
         private ExperimentSituations GetScienceSituation(Vessel vessel)
         {
             return GetScienceSituation(vessel.altitude, vessel.situation, vessel.mainBody);
         }
+
         public ExperimentSituations GetScienceSituation(double altitude, Vessel.Situations situation, CelestialBody body)
         {
-            CelestialBodyScienceParams scienceValues = body.scienceValues;
-            ExperimentSituations result;
+            CelestialBodyScienceParams pars = body.scienceValues;
             if (situation == Vessel.Situations.LANDED)
-            {
-                result = ExperimentSituations.SrfLanded;
-            }
+                return ExperimentSituations.SrfLanded;
+            else if (situation == Vessel.Situations.SPLASHED)
+                return ExperimentSituations.SrfSplashed;
+            else if (altitude <= pars.flyingAltitudeThreshold)
+                return ExperimentSituations.FlyingLow;
+            else if (altitude <= body.maxAtmosphereAltitude) // -ln(10^-6)
+                return ExperimentSituations.FlyingHigh;
+            else if (altitude <= pars.spaceAltitudeThreshold)
+                return ExperimentSituations.InSpaceLow;
             else
-            {
-                if (situation == Vessel.Situations.SPLASHED)
-                {
-                    result = ExperimentSituations.SrfSplashed;
-                }
-                else
-                {
-                    if (altitude <= (double)scienceValues.flyingAltitudeThreshold)
-                    {
-                        result = ExperimentSituations.FlyingLow;
-                    }
-                    else
-                    {
-                        if (altitude < Math.Max((double)body.maxAtmosphereAltitude, body.atmosphereScaleHeight * 1000.0 * 13.8))
-                        {
-                            result = ExperimentSituations.FlyingHigh;
-                        }
-                        else
-                        {
-                            if (altitude <= (double)scienceValues.spaceAltitudeThreshold)
-                            {
-                                result = ExperimentSituations.InSpaceLow;
-                            }
-                            else
-                            {
-                                result = ExperimentSituations.InSpaceHigh;
-                            }
-                        }
-                    }
-                }
-            }
-            return result;
+                return ExperimentSituations.InSpaceHigh;
         }
+
+        // Ethernet's Methods for ExperimentSituations (Above this point)
+        // START Confirm Situation Method
+
         public bool ConfirmLocation(ExperimentSituations experimentlocation)
         {
-            bool result;
+
+            string currentSituation = "Placeholder";
+
+
             if (experimentlocation == ExperimentSituations.SrfLanded)
             {
-                string text = "SrfLanded";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "SrfLanded";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.SrfSplashed)
             {
-                string text = "SrfSplashed";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "SrfSplashed";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.FlyingLow)
             {
-                string text = "FlyingLow";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "FlyingLow";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.FlyingHigh)
             {
-                string text = "FlyingHigh";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "FlyingHigh";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.InSpaceLow)
             {
-                string text = "InSpaceLow";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "InSpaceLow";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.InSpaceHigh)
             {
-                string text = "InSpaceHigh";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation == text)
+                currentSituation = "InSpaceHigh";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation != text)
+
+                if (TargetSituation != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
-            result = false;
-            return result;
+
+            return false;
+
         }
+
+        // END Confirm Situation Method
         private bool CheckBody()
         {
-            return base.vessel.mainBody.name == TargetBody;
+            if (vessel.mainBody.name == TargetBody)
+                return true;
+
+            return false;
         }
+
         private bool CheckChemical()
         {
-            PartResource partResource = base.part.Resources.list.Find((PartResource pr) => pr.resourceName == ExperimentChemical);
-            return !(partResource == null) && partResource.amount == 0.0;
+            PartResource Chemical = this.part.Resources.list.Find(
+                delegate(PartResource pr)
+                {
+                    return pr.resourceName == ExperimentChemical;
+                }
+            );
+
+            if (!(Chemical == null) && Chemical.amount == 0)
+            {
+                return true;
+            }
+
+            return false;
         }
+
+
+        // Seperate Method for chemical release
+
         private bool ValidateExperiment()
         {
-            bool result;
-            if (!CheckBody())
+            if (CheckBody() == false)
             {
-                ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment is only calibrated for {0}!", TargetBody), 3f, ScreenMessageStyle.UPPER_CENTER);
-                ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment is only calibrated for {0} situation!", TargetSituation), 3f, ScreenMessageStyle.UPPER_CENTER);
-                ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3f, ScreenMessageStyle.UPPER_CENTER);
-                result = false;
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment is only calibrated for {0}!", TargetBody), 3, ScreenMessageStyle.UPPER_CENTER);
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment is only calibrated for {0} situation!", TargetSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3, ScreenMessageStyle.UPPER_CENTER);
+                return false;
             }
-            else
+
+            if (ConfirmLocation(GetScienceSituation(vessel)) == false)
             {
-                if (!ConfirmLocation(GetScienceSituation(base.vessel)))
-                {
-                    ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment is only calibrated for {0} situation!", TargetSituation), 3f, ScreenMessageStyle.UPPER_CENTER);
-                    ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3f, ScreenMessageStyle.UPPER_CENTER);
-                    result = false;
-                }
-                else
-                {
-                    if (!CheckChemical())
-                    {
-                        ScreenMessages.PostScreenMessage(string.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3f, ScreenMessageStyle.UPPER_CENTER);
-                        result = false;
-                    }
-                    else
-                    {
-                        if (ConfirmLocation(GetScienceSituation(base.vessel)) && CheckBody() && CheckChemical())
-                        {
-                            ScreenMessages.PostScreenMessage(string.Format("Success! We've completed the requirements to complete this experiment!", new object[0]), 3f, ScreenMessageStyle.UPPER_CENTER);
-                            result = true;
-                        }
-                        else
-                        {
-                            result = false;
-                        }
-                    }
-                }
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment is only calibrated for {0} situation!", TargetSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3, ScreenMessageStyle.UPPER_CENTER);
+                return false;
             }
-            return result;
+
+            if (CheckChemical() == false)
+            {
+                ScreenMessages.PostScreenMessage(String.Format("Warning! This Experiment requires to have dispersed the entire canister of {0}!", ExperimentChemical), 3, ScreenMessageStyle.UPPER_CENTER);
+                return false;
+            }
+
+            if (ConfirmLocation(GetScienceSituation(vessel)) && CheckBody() && CheckChemical())
+            {
+                ScreenMessages.PostScreenMessage(String.Format("Success! We've completed the requirements to complete this experiment!"), 3, ScreenMessageStyle.UPPER_CENTER);
+                return true;
+            }
+
+            return false;
+
         }
-        public new void DeployAction(KSPActionParam p)
+
+        #endregion
+
+        #region KSP Actions
+
+        new public void DeployAction(KSPActionParam p)
         {
             if (ValidateExperiment())
             {
+
                 base.DeployAction(p);
             }
         }
-        public new void DeployExperiment()
+
+        new public void DeployExperiment()
         {
             if (ValidateExperiment())
             {
+
                 base.DeployExperiment();
             }
         }
+
+        #endregion
     }
 }

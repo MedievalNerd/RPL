@@ -1,290 +1,369 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UnityEngine;
 
 namespace CustomExperiment
 {
     public class DataGeneratorModule : PartModule
     {
+        #region Variables & Fields
+
         [KSPField(isPersistant = true)]
         public bool IsEnabled;
+
         [KSPField(isPersistant = false)]
         public bool AlwaysActive;
+
         [KSPField(isPersistant = false)]
-        public string InputResource;
+        public String InputResource;
+
         [KSPField(isPersistant = false)]
-        public string OutputResource;
+        public String OutputResource;
+
         [KSPField(isPersistant = false)]
         public float InputRatio;
+
         [KSPField(isPersistant = false)]
         public float OutputRatio;
+
         [KSPField(isPersistant = false)]
         public float MaxDataAmount;
+
         [KSPField(isPersistant = false)]
-        public string TargetBody;
+        public String TargetBody;
+
         [KSPField(isPersistant = false)]
-        public string TargetSituation1;
+        public String TargetSituation1;
+
         [KSPField(isPersistant = false)]
-        public string TargetSituation2;
+        public String TargetSituation2;
+
         [KSPField(isPersistant = false)]
-        public string TargetSituation3;
+        public String TargetSituation3;
+
+        #endregion
+
+        #region Events & Actions
+
         [KSPEvent(guiActive = true, guiName = "Activate Recorder", active = true)]
         public void ActivateConverter()
         {
             IsEnabled = true;
         }
+
         [KSPEvent(guiActive = true, guiName = "Deactivate Recorder", active = false)]
         public void DeactivateConverter()
         {
             IsEnabled = false;
         }
+
         [KSPAction("Activate Recorder")]
         public void ActivateConverterAction(KSPActionParam param)
         {
             ActivateConverter();
         }
+
         [KSPAction("Deactivate Recorder")]
         public void DeactivateConverterAction(KSPActionParam param)
         {
             DeactivateConverter();
         }
+
         [KSPAction("Toggle Recorder")]
         public void ToggleConverterAction(KSPActionParam param)
         {
             IsEnabled = !IsEnabled;
         }
+
+        #endregion
+
+        #region Private Methods
+
+
+
         private bool CheckBody()
         {
-            return base.vessel.mainBody.name == TargetBody;
+            if (vessel.mainBody.name == TargetBody)
+                return true;
+
+            return false;
         }
+
         private bool CheckMaxData()
         {
-            PartResource partResource = base.part.Resources.list.Find((PartResource pr) => pr.resourceName == OutputResource);
-            return !(partResource == null) && partResource.amount >= (double)MaxDataAmount;
+            PartResource Data = this.part.Resources.list.Find(
+                delegate(PartResource pr)
+                {
+                    return pr.resourceName == OutputResource;
+                }
+            );
+
+            if (!(Data == null) && Data.amount >= MaxDataAmount)
+                return true;
+
+
+            return false;
         }
+
         private bool CheckElectricCharge()
         {
-            double num = 0.0;
-            bool result;
-            foreach (PartResource current in GetConnectedResources(base.part, InputResource))
+            double totalAmount = 0;
+
+            foreach (PartResource pr in GetConnectedResources(this.part, InputResource))
             {
-                num += current.amount;
-                if (num >= 1.0)
-                {
-                    result = true;
-                    return result;
-                }
+                totalAmount += pr.amount;
+
+                if (totalAmount >= 1)
+                    return true;
             }
-            result = false;
-            return result;
+
+            return false;
         }
-        private List<PartResource> GetConnectedResources(Part part, string resourceName)
+
+        private List<PartResource> GetConnectedResources(Part part, String resourceName)
         {
-            List<PartResource> list = new List<PartResource>();
+            List<PartResource> resources = new List<PartResource>();
             PartResourceDefinition resDef = PartResourceLibrary.Instance.GetDefinition(resourceName);
-            part.GetConnectedResources(resDef.id, resDef.resourceFlowMode, list);
-            return list;
+            part.GetConnectedResources(resDef.id, resDef.resourceFlowMode, resources);
+            return resources;
         }
+
+        // Ethernet's Methods for ExperimentSituations (Below this point)
+
         private ExperimentSituations GetScienceSituation(Vessel vessel)
         {
             return GetScienceSituation(vessel.altitude, vessel.situation, vessel.mainBody);
         }
+
         public ExperimentSituations GetScienceSituation(double altitude, Vessel.Situations situation, CelestialBody body)
         {
-            CelestialBodyScienceParams scienceValues = body.scienceValues;
-            ScreenMessages.PostScreenMessage(string.Format("{0} flyingAltitudeThreshold : {1}", body.name, scienceValues.flyingAltitudeThreshold), 3f, ScreenMessageStyle.UPPER_CENTER);
-            ScreenMessages.PostScreenMessage(string.Format("{0} spaceAltitudeThreshold : {1}", body.name, scienceValues.spaceAltitudeThreshold), 3f, ScreenMessageStyle.UPPER_CENTER);
-            ScreenMessages.PostScreenMessage(string.Format("{0} atmosphereScaleHeight : {1}", body.name, body.atmosphereScaleHeight), 3f, ScreenMessageStyle.UPPER_CENTER);
-            ScreenMessages.PostScreenMessage(string.Format("{0} body.maxAtmosphereAltitude : {1}", body.name, body.maxAtmosphereAltitude), 3f, ScreenMessageStyle.UPPER_CENTER);
-            ExperimentSituations result;
+
+            CelestialBodyScienceParams pars = body.scienceValues;
+
+            ScreenMessages.PostScreenMessage(String.Format("{0} flyingAltitudeThreshold : {1}", body.name, pars.flyingAltitudeThreshold), 3, ScreenMessageStyle.UPPER_CENTER);
+            ScreenMessages.PostScreenMessage(String.Format("{0} spaceAltitudeThreshold : {1}", body.name, pars.spaceAltitudeThreshold), 3, ScreenMessageStyle.UPPER_CENTER);
+            ScreenMessages.PostScreenMessage(String.Format("{0} atmosphereScaleHeight : {1}", body.name, body.atmosphereScaleHeight), 3, ScreenMessageStyle.UPPER_CENTER);
+
             if (situation == Vessel.Situations.LANDED)
-            {
-                result = ExperimentSituations.SrfLanded;
-            }
+                return ExperimentSituations.SrfLanded;
+            else if (situation == Vessel.Situations.SPLASHED)
+                return ExperimentSituations.SrfSplashed;
+            else if (altitude <= pars.flyingAltitudeThreshold)
+                return ExperimentSituations.FlyingLow;
+            else if (altitude <= body.atmosphereScaleHeight * 1000 * 13.8) // -ln(10^-6)
+                return ExperimentSituations.FlyingHigh;
+            else if (altitude <= pars.spaceAltitudeThreshold)
+                return ExperimentSituations.InSpaceLow;
             else
-            {
-                if (situation == Vessel.Situations.SPLASHED)
-                {
-                    result = ExperimentSituations.SrfSplashed;
-                }
-                else
-                {
-                    if (altitude <= (double)scienceValues.flyingAltitudeThreshold)
-                    {
-                        result = ExperimentSituations.FlyingLow;
-                    }
-                    else
-                    {
-                        if (altitude < Math.Max((double)body.maxAtmosphereAltitude, body.atmosphereScaleHeight * 1000.0 * 13.8))
-                        {
-                            result = ExperimentSituations.FlyingHigh;
-                        }
-                        else
-                        {
-                            if (altitude <= (double)scienceValues.spaceAltitudeThreshold)
-                            {
-                                result = ExperimentSituations.InSpaceLow;
-                            }
-                            else
-                            {
-                                result = ExperimentSituations.InSpaceHigh;
-                            }
-                        }
-                    }
-                }
-            }
-            return result;
+                return ExperimentSituations.InSpaceHigh;
+
+            // original method with atmospheric check.
+            //if (situation == Vessel.Situations.LANDED)
+            //    return ExperimentSituations.SrfLanded;
+            //else if (situation == Vessel.Situations.SPLASHED)
+            //    return ExperimentSituations.SrfSplashed;
+            //else if (body.atmosphere && altitude <= pars.flyingAltitudeThreshold)
+            //    return ExperimentSituations.FlyingLow;
+            //else if (body.atmosphere && altitude <= body.atmosphereScaleHeight * 1000 * 13.8) // -ln(10^-6)
+            //    return ExperimentSituations.FlyingHigh;
+            //else if (altitude <= pars.spaceAltitudeThreshold)
+            //    return ExperimentSituations.InSpaceLow;
+            //else
+            //    return ExperimentSituations.InSpaceHigh;
+
         }
+
+        // Ethernet's Methods for ExperimentSituations (Above this point)
+
+        // START Confirm Situation Method
+
         public bool ConfirmLocation(ExperimentSituations experimentlocation)
         {
-            bool result;
+            string currentSituation = "Placeholder";
+
             if (experimentlocation == ExperimentSituations.SrfLanded)
             {
-                string text = "SrfLanded";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "SrfLanded";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.SrfSplashed)
             {
-                string text = "SrfSplashed";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "SrfSplashed";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.FlyingLow)
             {
-                string text = "FlyingLow";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "FlyingLow";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.FlyingHigh)
             {
-                string text = "FlyingHigh";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "FlyingHigh";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.InSpaceLow)
             {
-                string text = "InSpaceLow";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "InSpaceLow";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
+
             if (experimentlocation == ExperimentSituations.InSpaceHigh)
             {
-                string text = "InSpaceHigh";
-                ScreenMessages.PostScreenMessage(string.Format("Current Situation :{0}", text), 3f, ScreenMessageStyle.UPPER_CENTER);
-                if (TargetSituation1 == text || TargetSituation2 == text || TargetSituation3 == text)
+                currentSituation = "InSpaceHigh";
+                ScreenMessages.PostScreenMessage(String.Format("Current Situation :{0}", currentSituation), 3, ScreenMessageStyle.UPPER_CENTER);
+
+                if (TargetSituation1 == currentSituation || TargetSituation2 == currentSituation || TargetSituation3 == currentSituation)
                 {
-                    result = true;
-                    return result;
+                    return true;
                 }
-                if (TargetSituation1 != text && TargetSituation2 != text && TargetSituation3 != text)
+
+                if (TargetSituation1 != currentSituation && TargetSituation2 != currentSituation && TargetSituation3 != currentSituation)
                 {
-                    result = false;
-                    return result;
+                    return false;
                 }
             }
-            result = false;
-            return result;
+
+            return false;
+
         }
+
+        // END Confirm Situation Method
+
+        #endregion
+
+        #region Public Methods
+
         public override void OnFixedUpdate()
         {
-            if (IsEnabled || AlwaysActive)
+            if (!IsEnabled && !AlwaysActive)
+                return;
+
+            if (IsEnabled && CheckElectricCharge() == false)
             {
-                if (IsEnabled && !CheckElectricCharge())
-                {
-                    DeactivateConverter();
-                    ScreenMessages.PostScreenMessage(string.Format("Warning! Insufficient Power to run the Data Recorder!", new object[0]), 3f, ScreenMessageStyle.UPPER_CENTER);
-                }
-                else
-                {
-                    if (IsEnabled && !ConfirmLocation(GetScienceSituation(base.vessel)))
-                    {
-                        DeactivateConverter();
-                        ScreenMessages.PostScreenMessage(string.Format("Warning! The Data Recorder is only calibrated for {0},{1},{2} situations only!", TargetSituation1, TargetSituation2, TargetSituation3), 3f, ScreenMessageStyle.UPPER_CENTER);
-                    }
-                    else
-                    {
-                        if (IsEnabled && !CheckBody())
-                        {
-                            DeactivateConverter();
-                            ScreenMessages.PostScreenMessage(string.Format("Warning! The Data Recorder is calibrated for {0} only!", TargetBody), 3f, ScreenMessageStyle.UPPER_CENTER);
-                        }
-                        else
-                        {
-                            if (IsEnabled && CheckMaxData())
-                            {
-                                DeactivateConverter();
-                                ScreenMessages.PostScreenMessage(string.Format("Warning! The Data Recorder is full!", new object[0]), 3f, ScreenMessageStyle.UPPER_CENTER);
-                            }
-                            else
-                            {
-                                base.part.RequestResource(InputResource, InputRatio * TimeWarp.fixedDeltaTime);
-                                base.part.RequestResource(OutputResource, -OutputRatio * TimeWarp.fixedDeltaTime);
-                            }
-                        }
-                    }
-                }
+                DeactivateConverter();
+                ScreenMessages.PostScreenMessage(String.Format("Warning! Insufficient Power to run the Data Recorder!"), 3, ScreenMessageStyle.UPPER_CENTER);
+                return;
             }
+
+
+            // Inverted Body and situation for debugging must replace after.
+            if (IsEnabled && ConfirmLocation(GetScienceSituation(vessel)) == false)
+            {
+                DeactivateConverter();
+                ScreenMessages.PostScreenMessage(String.Format("Warning! The Data Recorder is only calibrated for {0},{1},{2} situations only!", TargetSituation1, TargetSituation2, TargetSituation3), 3, ScreenMessageStyle.UPPER_CENTER);
+                return;
+            }
+
+            if (IsEnabled && CheckBody() == false)
+            {
+                DeactivateConverter();
+
+                ScreenMessages.PostScreenMessage(String.Format("Warning! The Data Recorder is calibrated for {0} only!", TargetBody), 3, ScreenMessageStyle.UPPER_CENTER);
+                return;
+            }
+
+            if (IsEnabled && CheckMaxData())
+            {
+                DeactivateConverter();
+                ScreenMessages.PostScreenMessage(String.Format("Warning! The Data Recorder is full!"), 3, ScreenMessageStyle.UPPER_CENTER);
+                return;
+            }
+
+            this.part.RequestResource(InputResource, InputRatio);
+            this.part.RequestResource(OutputResource, -OutputRatio);
+
         }
+
         public override void OnStart(PartModule.StartState state)
         {
-            base.Actions["ActivateConverterAction"].guiName = (base.Events["ActivateConverter"].guiName = string.Format("Activate Data Recorder", new object[0]));
-            base.Actions["DeactivateConverterAction"].guiName = (base.Events["DeactivateConverter"].guiName = string.Format("Deactivate Data Recorder", new object[0]));
-            base.Actions["ToggleConverterAction"].guiName = string.Format("Toggle Data Recorder", new object[0]);
-            base.Events["ActivateConverter"].guiActive = (base.Events["DeactivateConverter"].guiActive = !AlwaysActive);
-            if (state != PartModule.StartState.Editor)
-            {
-                base.part.force_activate();
-            }
+            Actions["ActivateConverterAction"].guiName = Events["ActivateConverter"].guiName = String.Format("Activate Data Recorder");
+            Actions["DeactivateConverterAction"].guiName = Events["DeactivateConverter"].guiName = String.Format("Deactivate Data Recorder");
+            Actions["ToggleConverterAction"].guiName = String.Format("Toggle Data Recorder");
+
+            Events["ActivateConverter"].guiActive = Events["DeactivateConverter"].guiActive = !AlwaysActive;
+
+            if (state == StartState.Editor) { return; }
+
+            this.part.force_activate();
         }
+
         public override void OnUpdate()
         {
-            base.Events["ActivateConverter"].active = !IsEnabled;
-            base.Events["DeactivateConverter"].active = IsEnabled;
+
+            Events["ActivateConverter"].active = !IsEnabled;
+            Events["DeactivateConverter"].active = IsEnabled;
+
+
+
         }
+
+
+        // Debug Target Situation
+        //ScreenMessages.PostScreenMessage(String.Format("TargetSituation :{0}", TargetSituation),3, ScreenMessageStyle.UPPER_CENTER);
+        // Biome tracking
+        //ScreenMessages.PostScreenMessage(String.Format("Current Biome :{0}", getExperimentBiome(vessel.mainBody, vessel.latitude, vessel.longitude)), 3, ScreenMessageStyle.UPPER_CENTER);
+        // NEW STUFF
+        //private string getExperimentBiome(CelestialBody body, double lat, double lon)
+        //{
+        //    return body.BiomeMap.GetAtt(lat * 0.01745329238474369, lon * 0.01745329238474369).name;
+        //}
+        // NEW STUFF
+
+
+
+        #endregion
     }
 }
